@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "vectordbs"
+version = "0.1.0"
+description = "A python library that supports all vector databases specifically for LLM apps and frameworks"
+authors = ["Timothy Chen <tnachen@gmail.com>"]
+license = "Apache 2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+weaviate-client = "^3.15.5"
+pinecone-client = "^2.2.1"
+chromadb = "^0.3.21"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
