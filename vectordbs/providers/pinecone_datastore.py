@@ -4,7 +4,7 @@ import pinecone
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 import asyncio
 
-from datastore.datastore import DataStore
+from vectordbs.datastore import DataStore
 from models.models import (
     DocumentChunk,
     DocumentChunkMetadata,
@@ -34,7 +34,7 @@ UPSERT_BATCH_SIZE = 100
 class PineconeDataStore(DataStore):
     def __init__(self):
         # Check if the index name is specified and exists in Pinecone
-        if PINECONE_INDEX and PINECONE_INDEX not in pinecone.list_indexes():
+        if PINECONE_INDEX not in pinecone.list_indexes():
 
             # Get all fields in the metadata object in a list
             fields_to_index = list(DocumentChunkMetadata.__fields__.keys())
@@ -54,7 +54,7 @@ class PineconeDataStore(DataStore):
             except Exception as e:
                 print(f"Error creating index {PINECONE_INDEX}: {e}")
                 raise e
-        elif PINECONE_INDEX and PINECONE_INDEX in pinecone.list_indexes():
+        elif PINECONE_INDEX in pinecone.list_indexes():
             # Connect to an existing index with the specified name
             try:
                 print(f"Connecting to existing index {PINECONE_INDEX}")

@@ -11,6 +11,10 @@ python = "^3.10"
 weaviate-client = "^3.15.5"
 pinecone-client = "^2.2.1"
 chromadb = "^0.3.21"
+pymilvus = "^2.2.4"
+loguru = "^0.6.0"
+tenacity = "^8.2.2"
+envclasses = "^0.3.1"
 
 
 [build-system]
