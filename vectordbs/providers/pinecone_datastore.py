@@ -1,70 +1,29 @@
 import os
 from typing import Any, Dict, List, Optional
 import pinecone
-from tenacity import retry, wait_random_exponential, stop_after_attempt
 import asyncio
+from pydantic import BaseSettings, Field
 
-from vectordbs.datastore import DataStore
-from models.models import (
-    DocumentChunk,
-    DocumentChunkMetadata,
-    DocumentChunkWithScore,
-    DocumentMetadataFilter,
-    QueryResult,
-    QueryWithEmbedding,
-    Source,
-)
-from services.date import to_unix_timestamp
-
-# Read environment variables for Pinecone configuration
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-PINECONE_ENVIRONMENT = os.environ.get("PINECONE_ENVIRONMENT")
-PINECONE_INDEX = os.environ.get("PINECONE_INDEX")
-assert PINECONE_API_KEY is not None
-assert PINECONE_ENVIRONMENT is not None
-assert PINECONE_INDEX is not None
+from vectordbs.types import VectorStore
 
 # Initialize Pinecone with the API key and environment
-pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENVIRONMENT)
+
 
 # Set the batch size for upserting vectors to Pinecone
 UPSERT_BATCH_SIZE = 100
 
+class PineconeOptions(BaseSettings):
+    api_key: str = Field(..., env="PINECONE_API_KEY")
+    environment: str = Field(..., env="PINECONE_ENVIRONMENT")
+    index: str = Field(..., env="PINECONE_INDEX")
 
-class PineconeDataStore(DataStore):
-    def __init__(self):
-        # Check if the index name is specified and exists in Pinecone
-        if PINECONE_INDEX not in pinecone.list_indexes():
+class PineconeDataStore(VectorStore):
+    def __init__(self, options: PineconeOptions):
+        
+        pinecone.init(api_key=options.api_key, environment=options.environment)
+        # Will raise if index doesn't exist
+        self.index = pinecone.Index(options.index)        
 
-            # Get all fields in the metadata object in a list
-            fields_to_index = list(DocumentChunkMetadata.__fields__.keys())
-
-            # Create a new index with the specified name, dimension, and metadata configuration
-            try:
-                print(
-                    f"Creating index {PINECONE_INDEX} with metadata config {fields_to_index}"
-                )
-                pinecone.create_index(
-                    PINECONE_INDEX,
-                    dimension=1536,  # dimensionality of OpenAI ada v2 embeddings
-                    metadata_config={"indexed": fields_to_index},
-                )
-                self.index = pinecone.Index(PINECONE_INDEX)
-                print(f"Index {PINECONE_INDEX} created successfully")
-            except Exception as e:
-                print(f"Error creating index {PINECONE_INDEX}: {e}")
-                raise e
-        elif PINECONE_INDEX in pinecone.list_indexes():
-            # Connect to an existing index with the specified name
-            try:
-                print(f"Connecting to existing index {PINECONE_INDEX}")
-                self.index = pinecone.Index(PINECONE_INDEX)
-                print(f"Connected to index {PINECONE_INDEX} successfully")
-            except Exception as e:
-                print(f"Error connecting to index {PINECONE_INDEX}: {e}")
-                raise e
-
-    @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(3))
     async def _upsert(self, chunks: Dict[str, List[DocumentChunk]]) -> List[str]:
         """
         Takes in a dict from document id to list of document chunks and inserts them into the index.
@@ -106,7 +65,6 @@ class PineconeDataStore(DataStore):
 
         return doc_ids
 
-    @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(3))
     async def _query(
         self,
         queries: List[QueryWithEmbedding],
@@ -171,7 +129,6 @@ class PineconeDataStore(DataStore):
 
         return results
 
-    @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(3))
     async def delete(
         self,
         ids: Optional[List[str]] = None,

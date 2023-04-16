@@ -1,7 +1,7 @@
 import os
-from datastore import DataStore
+from types import VectorStore
 
-async def get_datastore() -> DataStore:
+async def get_datastore() -> VectorStore:
     datastore = os.environ.get("DATASTORE")
     assert datastore is not None
 
