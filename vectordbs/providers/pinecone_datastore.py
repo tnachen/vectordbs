@@ -4,10 +4,7 @@ import pinecone
 import asyncio
 from pydantic import BaseSettings, Field
 
-from vectordbs.types import VectorStore
-
-# Initialize Pinecone with the API key and environment
-
+from vectordbs.types import VectorStore, VectorStoreData, VectorStoreQuery, VectorStoreQueryResult
 
 # Set the batch size for upserting vectors to Pinecone
 UPSERT_BATCH_SIZE = 100
@@ -20,11 +17,14 @@ class PineconeOptions(BaseSettings):
 class PineconeDataStore(VectorStore):
     def __init__(self, options: PineconeOptions):
         
+        # Initialize Pinecone with the API key and environment
+        # NOTE: Do we need a singleton to make sure we only init once?
         pinecone.init(api_key=options.api_key, environment=options.environment)
+
         # Will raise if index doesn't exist
         self.index = pinecone.Index(options.index)        
 
-    async def _upsert(self, chunks: Dict[str, List[DocumentChunk]]) -> List[str]:
+    async def _upsert(self, datas: List[VectorStoreData]) -> List[str]:
         """
         Takes in a dict from document id to list of document chunks and inserts them into the index.
         Return a list of document ids.
@@ -34,19 +34,11 @@ class PineconeDataStore(VectorStore):
         # Initialize a list of vectors to upsert
         vectors = []
         # Loop through the dict items
-        for doc_id, chunk_list in chunks.items():
+        for data in datas:
             # Append the id to the ids list
-            doc_ids.append(doc_id)
-            print(f"Upserting document_id: {doc_id}")
-            for chunk in chunk_list:
-                # Create a vector tuple of (id, embedding, metadata)
-                # Convert the metadata object to a dict with unix timestamps for dates
-                pinecone_metadata = self._get_pinecone_metadata(chunk.metadata)
-                # Add the text and document id to the metadata dict
-                pinecone_metadata["text"] = chunk.text
-                pinecone_metadata["document_id"] = doc_id
-                vector = (chunk.id, chunk.embedding, pinecone_metadata)
-                vectors.append(vector)
+            doc_ids.append(data.id)
+            vector = (chunk.id, chunk.embedding, chunk.metadata)
+            vectors.append(vector)                
 
         # Split the vectors list into batches of the specified size
         batches = [
@@ -67,15 +59,15 @@ class PineconeDataStore(VectorStore):
 
     async def _query(
         self,
-        queries: List[QueryWithEmbedding],
-    ) -> List[QueryResult]:
+        queries: List[VectorStoreQuery],
+    ) -> List[VectorStoreQueryResult()]:
         """
         Takes in a list of queries with embeddings and filters and returns a list of query results with matching document chunks and scores.
         """
 
         # Define a helper coroutine that performs a single query and returns a QueryResult
-        async def _single_query(query: QueryWithEmbedding) -> QueryResult:
-            print(f"Query: {query.query}")
+        async def _single_query(query: VectorStoreQuery) -> VectorStoreQueryResult():
+            #print(f"Query: {query.query}")
 
             # Convert the metadata filter object to a dict with pinecone filter expressions
             pinecone_filter = self._get_pinecone_filter(query.filter)

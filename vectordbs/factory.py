@@ -1,8 +1,7 @@
 import os
 from types import VectorStore
 
-async def get_datastore() -> VectorStore:
-    datastore = os.environ.get("DATASTORE")
+def get_datastore(datastore: str) -> VectorStore:
     assert datastore is not None
 
     match datastore:
@@ -25,7 +24,7 @@ async def get_datastore() -> VectorStore:
         case "redis":
             from providers.redis_datastore import RedisDataStore
 
-            return await RedisDataStore.init()
+            return RedisDataStore.init()
         case "qdrant":
             from providers.qdrant_datastore import QdrantDataStore
 
