@@ -122,47 +122,18 @@ class PineconeDataStore(VectorStore):
         return results
 
     async def delete(
-        self,
-        ids: Optional[List[str]] = None,
-        filter: Optional[DocumentMetadataFilter] = None,
-        delete_all: Optional[bool] = None,
-    ) -> bool:
+        self, ids: List[str]) -> bool:
         """
-        Removes vectors by ids, filter, or everything from the index.
+        Removes vectors by ids.
         """
-        # Delete all vectors from the index if delete_all is True
-        if delete_all:
-            try:
-                print(f"Deleting all vectors from index")
-                self.index.delete(delete_all=True)
-                print(f"Deleted all vectors successfully")
-                return True
-            except Exception as e:
-                print(f"Error deleting all vectors: {e}")
-                raise e
-
-        # Convert the metadata filter object to a dict with pinecone filter expressions
-        pinecone_filter = self._get_pinecone_filter(filter)
-        # Delete vectors that match the filter from the index if the filter is not empty
-        if pinecone_filter != {}:
-            try:
-                print(f"Deleting vectors with filter {pinecone_filter}")
-                self.index.delete(filter=pinecone_filter)
-                print(f"Deleted vectors with filter successfully")
-            except Exception as e:
-                print(f"Error deleting vectors with filter: {e}")
-                raise e
-
-        # Delete vectors that match the document ids from the index if the ids list is not empty
-        if ids is not None and len(ids) > 0:
-            try:
-                print(f"Deleting vectors with ids {ids}")
-                pinecone_filter = {"document_id": {"$in": ids}}
-                self.index.delete(filter=pinecone_filter)  # type: ignore
-                print(f"Deleted vectors with ids successfully")
-            except Exception as e:
-                print(f"Error deleting vectors with ids: {e}")
-                raise e
+        try:
+            print(f"Deleting vectors with ids {ids}")
+            pinecone_filter = {"document_id": {"$in": ids}}
+            self.index.delete(filter=pinecone_filter)  # type: ignore
+            print(f"Deleted vectors with ids successfully")
+        except Exception as e:
+            print(f"Error deleting vectors with ids: {e}")
+            raise e
 
         return True
 

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 from enum import Enum
+from abc import ABC, abstractmethod
 
 @dataclass
 class VectorStoreData:
@@ -48,10 +49,10 @@ class VectorStoreQuery:
     alpha: Optional[float] = None
 
 
-@runtime_checkable
-class VectorStore(Protocol):
+class VectorStore(ABC):
     """Abstract vector store protocol."""
 
+    @abstractmethod
     def add(
         self,
         datas: List[VectorStoreData],
@@ -59,10 +60,12 @@ class VectorStore(Protocol):
         """Add embedding results to vector store."""
         ...
 
-    def delete(self, id: str, **delete_kwargs: Any) -> None:
+    @abstractmethod
+    def delete(self, ids: List[str]) -> None:
         """Delete doc."""
         ...
 
+    @abstractmethod
     def query(
         self,
         query: VectorStoreQuery,
