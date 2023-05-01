@@ -7,13 +7,12 @@ from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 from enum import Enum
 from abc import ABC, abstractmethod
+from pydantic import BaseModel
 
-@dataclass
-class VectorStoreData:
+class VectorStoreData(BaseModel):
     id: str
     data: dict
     embedding: List[float]
-
 
 @dataclass
 class VectorStoreQueryResult:
