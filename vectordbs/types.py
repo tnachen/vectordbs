@@ -1,35 +1,45 @@
-"""CREDIT: Originated from GPT index code"""
-"""Vector store index types."""
-
-
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
-
 from enum import Enum
 from abc import ABC, abstractmethod
 from pydantic import BaseModel
 
-class VectorStoreData(BaseModel):
-    id: str
-    data: dict
-    embedding: List[float]
+@dataclass
+class DocumentChunk:
+    document_id: str
+    text: str
+    vector: List[float]
 
 @dataclass
-class VectorStoreQueryResult:
-    """Vector store query result."""
+class DocumentMetadataFilter:
+    field_name: str
+    gte: Optional[int] = None
+    lte: Optional[int] = None
 
+@dataclass
+class DocumentChunkWithScore(DocumentChunk):
+    score: float
+@dataclass
+class QueryResult:
     data: Optional[List[Any]] = None
     similarities: Optional[List[float]] = None
     ids: Optional[List[str]] = None
+@dataclass
+class QueryWithEmbedding:
+    text: str
+    vector: List[float]
 
-
+@dataclass
+class VectorStoreData:
+    id: str
+    data: dict
+    embedding: List[float]
 class VectorStoreQueryMode(str, Enum):
     """Vector store query mode."""
 
     DEFAULT = "default"
     SPARSE = "sparse"
     HYBRID = "hybrid"
-
 
 @dataclass
 class VectorStoreQuery:
@@ -48,7 +58,9 @@ class VectorStoreQuery:
     alpha: Optional[float] = None
 
 
-class VectorStore(ABC):
+@runtime_checkable
+class VectorStore(Protocol):
+
     """Abstract vector store protocol."""
 
     @abstractmethod
@@ -68,6 +80,6 @@ class VectorStore(ABC):
     def query(
         self,
         query: VectorStoreQuery,
-    ) -> VectorStoreQueryResult:
+    ) -> QueryResult:
         """Query vector store."""
         ...

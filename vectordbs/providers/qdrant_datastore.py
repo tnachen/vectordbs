@@ -6,8 +6,8 @@ from grpc._channel import _InactiveRpcError
 from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.http.models import PayloadSchemaType
 
-from datastore.datastore import DataStore
-from models.models import (
+from vectordbs.datastore import DataStore
+from vectordbs.types import (
     DocumentChunk,
     DocumentMetadataFilter,
     QueryResult,
@@ -58,7 +58,7 @@ class QdrantDataStore(DataStore):
         # Set up the collection so the points might be inserted or queried
         self._set_up_collection(vector_size, distance, recreate_collection)
 
-    async def _upsert(self, chunks: Dict[str, List[DocumentChunk]]) -> List[str]:
+    async def upsert(self, chunks: Dict[str, List[DocumentChunk]]) -> List[str]:
         """
         Takes in a list of document chunks and inserts them into the database.
         Return a list of document ids.
@@ -75,7 +75,7 @@ class QdrantDataStore(DataStore):
         )
         return list(chunks.keys())
 
-    async def _query(
+    async def query(
         self,
         queries: List[QueryWithEmbedding],
     ) -> List[QueryResult]:
@@ -100,33 +100,26 @@ class QdrantDataStore(DataStore):
             for query, result in zip(queries, results)
         ]
 
-    async def delete(
-        self,
-        ids: Optional[List[str]] = None,
-        filter: Optional[DocumentMetadataFilter] = None,
-        delete_all: Optional[bool] = None,
-    ) -> bool:
-        """
-        Removes vectors by ids, filter, or everything in the datastore.
-        Returns whether the operation was successful.
-        """
-        if ids is None and filter is None and delete_all is None:
-            raise ValueError(
-                "Please provide one of the parameters: ids, filter or delete_all."
-            )
+async def delete(
+    self,
+    ids: Optional[List[str]] = None,
+    filter: Optional[DocumentMetadataFilter] = None,
+) -> bool:
+    """
+    Removes vectors by ids, filter, or everything in the datastore.
+    Returns whether the operation was successful.
+    """
+    if ids is None and filter is None:
+        raise ValueError("Please provide one of the parameters: ids or filter.")
 
-        if delete_all:
-            points_selector = rest.Filter()
-        else:
-            points_selector = self._convert_metadata_filter_to_qdrant_filter(
-                filter, ids
-            )
+    points_selector = self._convert_metadata_filter_to_qdrant_filter(filter, ids)
 
-        response = self.client.delete(
-            collection_name=self.collection_name,
-            points_selector=points_selector,  # type: ignore
-        )
-        return "COMPLETED" == response.status
+    response = self.client.delete(
+        collection_name=self.collection_name,
+        points_selector=points_selector,  # type: ignore
+    )
+    return "COMPLETED" == response.status
+
 
     def _convert_document_chunk_to_point(
         self, document_chunk: DocumentChunk
@@ -220,78 +213,74 @@ class QdrantDataStore(DataStore):
                             gte=gte_filter,
                             lte=lte_filter,
                         ),
-                    )
                 )
-
+            )
         if 0 == len(must_conditions) and 0 == len(should_conditions):
             return None
-
         return rest.Filter(must=must_conditions, should=should_conditions)
 
-    def _convert_scored_point_to_document_chunk_with_score(
-        self, scored_point: rest.ScoredPoint
-    ) -> DocumentChunkWithScore:
-        payload = scored_point.payload or {}
-        return DocumentChunkWithScore(
-            id=payload.get("id"),
-            text=scored_point.payload.get("text"),  # type: ignore
-            metadata=scored_point.payload.get("metadata"),  # type: ignore
-            embedding=scored_point.vector,  # type: ignore
-            score=scored_point.score,
-        )
+def _convert_scored_point_to_document_chunk_with_score(
+    self, scored_point: rest.ScoredPoint
+) -> DocumentChunkWithScore:
+    payload = scored_point.payload or {}
+    return DocumentChunkWithScore(
+        id=payload.get("id"),
+        text=scored_point.payload.get("text"),  # type: ignore
+        metadata=scored_point.payload.get("metadata"),  # type: ignore
+        embedding=scored_point.vector,  # type: ignore
+        score=scored_point.score,
+    )
 
-    def _set_up_collection(
-        self, vector_size: int, distance: str, recreate_collection: bool
-    ):
-        distance = rest.Distance[distance.upper()]
+def _set_up_collection(
+    self, vector_size: int, distance: str, recreate_collection: bool
+):
+    distance = rest.Distance[distance.upper()]
 
-        if recreate_collection:
-            self._recreate_collection(distance, vector_size)
+    if recreate_collection:
+        self._recreate_collection(distance, vector_size)
 
-        try:
-            collection_info = self.client.get_collection(self.collection_name)
-            current_distance = collection_info.config.params.vectors.distance  # type: ignore
-            current_vector_size = collection_info.config.params.vectors.size  # type: ignore
+    try:
+        collection_info = self.client.get_collection(self.collection_name)
+        current_distance = collection_info.config.params.vectors.distance  # type: ignore
+        current_vector_size = collection_info.config.params.vectors.size  # type: ignore
 
-            if current_distance != distance:
-                raise ValueError(
-                    f"Collection '{self.collection_name}' already exists in Qdrant, "
-                    f"but it is configured with a similarity '{current_distance.name}'. "
-                    f"If you want to use that collection, but with a different "
-                    f"similarity, please set `recreate_collection=True` argument."
-                )
+        if current_distance != distance:
+            raise ValueError(
+                f"Collection '{self.collection_name}' already exists in Qdrant, "
+                f"but it is configured with a similarity '{current_distance.name}'. "
+                f"If you want to use that collection, but with a different "
+                f"similarity, please set `recreate_collection=True` argument."
+            )
 
-            if current_vector_size != vector_size:
-                raise ValueError(
-                    f"Collection '{self.collection_name}' already exists in Qdrant, "
-                    f"but it is configured with a vector size '{current_vector_size}'. "
-                    f"If you want to use that collection, but with a different "
-                    f"vector size, please set `recreate_collection=True` argument."
-                )
-        except (UnexpectedResponse, _InactiveRpcError):
-            self._recreate_collection(distance, vector_size)
+        if current_vector_size != vector_size:
+            raise ValueError(
+                f"Collection '{self.collection_name}' already exists in Qdrant, "
+                f"but it is configured with a vector size '{current_vector_size}'. "
+                f"If you want to use that collection, but with a different "
+                f"vector size, please set `recreate_collection=True` argument."
+            )
+    except (UnexpectedResponse, _InactiveRpcError):
+        self._recreate_collection(distance, vector_size)
 
-    def _recreate_collection(self, distance: rest.Distance, vector_size: int):
-        self.client.recreate_collection(
-            self.collection_name,
-            vectors_config=rest.VectorParams(
-                size=vector_size,
-                distance=distance,
-            ),
-        )
+def _recreate_collection(self, distance: rest.Distance, vector_size: int):
+    self.client.recreate_collection(
+        self.collection_name,
+        vectors_config=rest.VectorParams(
+            size=vector_size,
+            distance=distance,
+        ),
+    )
 
-        # Create the payload index for the document_id metadata attribute, as it is
-        # used to delete the document related entries
-        self.client.create_payload_index(
-            self.collection_name,
-            field_name="metadata.document_id",
-            field_type=PayloadSchemaType.KEYWORD,
-        )
+    # Create the payload index for the document_id metadata attribute, as it is
+    # used to delete the document related entries
+    self.client.create_payload_index(
+        self.collection_name,
+        field_name="metadata.document_id",
+        field_type=PayloadSchemaType.KEYWORD,
+    )
+    self.client.create_payload_index(
+        self.collection_name,
+        field_name="created_at",
+        field_schema=PayloadSchemaType.INTEGER,
+    )
 
-        # Create the payload index for the created_at attribute, to make the lookup
-        # by range filters faster
-        self.client.create_payload_index(
-            self.collection_name,
-            field_name="created_at",
-            field_schema=PayloadSchemaType.INTEGER,
-        )
