@@ -9,7 +9,7 @@ from vectordbs.types import (
     QueryWithEmbedding,
     DocumentMetadata,
 )
-from vectordbs.providers.qdrant_datastore import QdrantDataStore
+from vectordbs.providers.qdrant_datastore import QdrantDataStore, QdrantOptions
 
 def create_document_chunk(id: Optional[str] = None) -> DocumentChunk:
     return DocumentChunk(
@@ -26,7 +26,8 @@ def create_document_chunk(id: Optional[str] = None) -> DocumentChunk:
 
 @pytest.fixture
 def qdrant_datastore():
-    datastore = QdrantDataStore(recreate_collection=True)
+    options = QdrantOptions()
+    datastore = QdrantDataStore(options, recreate_collection=True)
     yield datastore
     datastore.delete(filter=None)
 

@@ -18,24 +18,26 @@ from qdrant_client.http import models as rest
 
 import qdrant_client
 
+from pydantic import BaseSettings, Field
 from services.date import to_unix_timestamp
 
-QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost")
-QDRANT_PORT = os.environ.get("QDRANT_PORT", "6333")
-QDRANT_GRPC_PORT = os.environ.get("QDRANT_GRPC_PORT", "6334")
-QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY")
-QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "document_chunks")
 
-
+class QdrantOptions(BaseSettings):
+    url: str = Field(..., env="QDRANT_URL", default="http://localhost")
+    port: int = Field(..., env="QDRANT_PORT", default=6333)
+    grpc_port: int = Field(..., env="QDRANT_GRPC_PORT", default=6334)
+    collection: str = Field(..., env="QDRANT_COLLECTION", default="document_chunks")
+    api_key: str = Field(..., env="QDRANT_API_KEY")
+    vector_size: int = Field(1536)
+    distance: str = Field("Cosine")
+    
 class QdrantDataStore(DataStore):
     UUID_NAMESPACE = uuid.UUID("3896d314-1e95-4a3a-b45a-945f9f0b541d")
 
     def __init__(
         self,
-        collection_name: Optional[str] = None,
-        vector_size: int = 1536,
-        distance: str = "Cosine",
-        recreate_collection: bool = False,
+        options: QdrantOptions,
+        recreate_collection: bool = False
     ):
         """
         Args:
@@ -46,14 +48,14 @@ class QdrantDataStore(DataStore):
                 similarity
         """
         self.client = qdrant_client.QdrantClient(
-            url=QDRANT_URL,
-            port=int(QDRANT_PORT),
-            grpc_port=int(QDRANT_GRPC_PORT),
-            api_key=QDRANT_API_KEY,
+            url=options.url,
+            port=options.port,
+            grpc_port=options.grpc_port,
+            api_key=options.api_key,
             prefer_grpc=True,
             timeout=10,
         )
-        self.collection_name = collection_name or QDRANT_COLLECTION
+        self.collection_name = options.collection
 
         # Set up the collection so the points might be inserted or queried
         self._set_up_collection(vector_size, distance, recreate_collection)

@@ -19,11 +19,13 @@ class DocumentMetadataFilter:
 @dataclass
 class DocumentChunkWithScore(DocumentChunk):
     score: float
+
 @dataclass
 class QueryResult:
     data: Optional[List[Any]] = None
     similarities: Optional[List[float]] = None
     ids: Optional[List[str]] = None
+
 @dataclass
 class QueryWithEmbedding:
     text: str
@@ -34,6 +36,7 @@ class VectorStoreData:
     id: str
     data: dict
     embedding: List[float]
+
 class VectorStoreQueryMode(str, Enum):
     """Vector store query mode."""
 
@@ -57,12 +60,9 @@ class VectorStoreQuery:
     # NOTE: only for hybrid search (0 for bm25, 1 for vector search)
     alpha: Optional[float] = None
 
-
-@runtime_checkable
-class VectorStore(Protocol):
-
-    """Abstract vector store protocol."""
-
+class VectorStore(ABC):
+    """Abstract vector store class."""
+    
     @abstractmethod
     def add(
         self,
